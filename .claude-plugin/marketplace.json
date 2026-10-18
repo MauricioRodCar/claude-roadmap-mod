@@ -1,0 +1,12 @@
+{
+  "name": "claude-roadmap-mod",
+  "owner": { "name": "Mauricio", "url": "https://github.com/MauricioRodCar" },
+  "description": "Mod de Claude Code: barra lateral con el roadmap de la tarea en curso",
+  "plugins": [
+    {
+      "name": "roadmap",
+      "source": "./",
+      "description": "Barra lateral con el roadmap de la tarea en curso: pasos, avance, entradas y salidas"
+    }
+  ]
+}

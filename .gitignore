@@ -1,0 +1,16 @@
+# Tipos que Claude Code genera al cargar el mod
+.claude-plugin/types/
+
+# Dependencias y salidas
+node_modules/
+.mcpb-cache/
+*.log
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*~
