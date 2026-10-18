@@ -1,13 +1,19 @@
 # Changelog
 
+## 0.3.0
+
+- English and Spanish: the sidebar, the command and the steps Claude writes follow the `language` option (`en` by default).
+- `/roadmap lang en|es` switches the language; it is also in `/config`.
+- English README, with the Spanish one in `README.es.md`.
+
 ## 0.2.0
 
-- Una sola herramienta, `track`, en lugar de `set_plan` y `update_step`: con `title` reemplaza el plan; sin él aplica parches a uno o varios pasos.
-- El siguiente paso pendiente pasa a "en curso" solo: una llamada por paso terminado.
-- Claves y estados cortos (`t`, `s`, `in`, `out`, `d`; `todo`, `doing`, `done`, `blocked`, `skip`).
-- Guía del system prompt más corta, añadida solo donde la herramienta está disponible (no en subagentes sin ella).
-- Respuesta de la herramienta reducida a `ok <hechos>/<total>`.
+- One tool, `track`, instead of `set_plan` and `update_step`: with `title` it replaces the plan; without it, it patches one or more steps.
+- The next to-do step starts by itself: one call per finished step.
+- Short keys and statuses (`t`, `s`, `in`, `out`, `d`; `todo`, `doing`, `done`, `blocked`, `skip`).
+- Shorter system-prompt guide, added only where the tool is offered (not to subagents without it).
+- The tool's reply is reduced to `ok <done>/<total>`.
 
 ## 0.1.0
 
-- Primera versión: barra lateral con pasos, porcentaje de avance, entradas, salidas y detalle al hacer click.
+- First release: sidebar with steps, progress percentage, inputs, outputs and details on click.

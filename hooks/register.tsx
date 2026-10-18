@@ -9,6 +9,52 @@ const TOOL = 'mcp__roadmap__track'
 const plan = atom({ plugin: 'roadmap', key: 'plan' } as const, null)
 const expanded = atom({ plugin: 'roadmap', key: 'expanded' } as const, [])
 
+const STRINGS = {
+  en: {
+    name: 'English',
+    task: 'Task',
+    step: (n: number) => `Step ${n}`,
+    empty: 'No task in progress',
+    hint: 'When you ask for a multi-step task, its breakdown shows up here.',
+    steps: 'steps',
+    input: 'Input',
+    output: 'Output',
+    noDetails: '_No details yet._',
+    command: 'Open the roadmap sidebar ("clear" empties it, "lang en|es" sets the language)',
+    hintArgs: '[clear | lang en|es]',
+    opened: 'Roadmap opened.',
+    cleared: 'Roadmap cleared.',
+    language: (name: string) => `Roadmap language: ${name}.`,
+    badLanguage: 'Use /roadmap lang en or /roadmap lang es.',
+    denied: (why: string) => `Could not change the language: ${why}`,
+  },
+  es: {
+    name: 'Español',
+    task: 'Tarea',
+    step: (n: number) => `Paso ${n}`,
+    empty: 'Sin tarea en curso',
+    hint: 'Cuando me pidas una tarea de varios pasos, su desglose aparecerá aquí.',
+    steps: 'pasos',
+    input: 'Entrada',
+    output: 'Salida',
+    noDetails: '_Sin detalles todavía._',
+    command: 'Abre la barra lateral del roadmap ("clear" la vacía, "lang en|es" cambia el idioma)',
+    hintArgs: '[clear | lang en|es]',
+    opened: 'Roadmap abierto.',
+    cleared: 'Roadmap vacío.',
+    language: (name: string) => `Idioma del roadmap: ${name}.`,
+    badLanguage: 'Usa /roadmap lang en o /roadmap lang es.',
+    denied: (why: string) => `No pude cambiar el idioma: ${why}`,
+  },
+}
+
+export type Language = keyof typeof STRINGS
+type Words = (typeof STRINGS)[Language]
+
+export function language(value: unknown): Language {
+  return value === 'es' ? 'es' : 'en'
+}
+
 const STATUSES: readonly StepStatus[] = ['todo', 'doing', 'done', 'blocked', 'skip']
 
 const ICON: Record<StepStatus, string> = {
@@ -56,10 +102,13 @@ const DESCRIPTION =
   'Roadmap sidebar. Step: id, t=title, s=status, in/out=inputs/outputs (few words each), d=markdown details shown on click. ' +
   'With title: replaces the plan. Without: patches steps by id (new id appends). The first todo step becomes doing when none is.'
 
-const GUIDE =
-  `The person follows multi-step tasks in a Roadmap sidebar, not in chat. Before starting one, call ${TOOL} once with title and every step (t, in, out). ` +
-  'Then one call per finished step: s "done", real out, a short d; batch steps finished together. Re-plan by sending title again. ' +
-  'Keep chat brief, skip it for one-step work, and write in the person\'s language.'
+function guide(words: Words): string {
+  return (
+    `The person follows multi-step tasks in a Roadmap sidebar, not in chat. Before starting one, call ${TOOL} once with title and every step (t, in, out). ` +
+    'Then one call per finished step: s "done", real out, a short d; batch steps finished together. Re-plan by sending title again. ' +
+    `Keep chat brief and skip it for one-step work. Write the roadmap in ${words.name}.`
+  )
+}
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -86,7 +135,11 @@ function patch(base: Step, raw: Record<string, unknown>): Step {
   }
 }
 
-export function apply(current: Roadmap | null, input: Record<string, unknown>): Roadmap {
+export function apply(
+  current: Roadmap | null,
+  input: Record<string, unknown>,
+  words: Words = STRINGS.en,
+): Roadmap {
   const title = text(input.title)
   const patches = (Array.isArray(input.steps) ? input.steps : []).map(
     raw => (raw ?? {}) as Record<string, unknown>,
@@ -96,7 +149,7 @@ export function apply(current: Roadmap | null, input: Record<string, unknown>): 
   for (const raw of patches) {
     const id = text(raw.id) || String(steps.length + 1)
     const found = steps.find(step => step.id === id)
-    const base: Step = found ?? { id, title: `Paso ${steps.length + 1}`, status: 'todo', inputs: [], outputs: [] }
+    const base: Step = found ?? { id, title: words.step(steps.length + 1), status: 'todo', inputs: [], outputs: [] }
     const step = patch(base, raw)
     steps = found === undefined ? [...steps, step] : steps.map(one => (one.id === id ? step : one))
   }
@@ -108,7 +161,7 @@ export function apply(current: Roadmap | null, input: Record<string, unknown>): 
     }
   }
 
-  return { title: title || current?.title || 'Tarea', steps }
+  return { title: title || current?.title || words.task, steps }
 }
 
 export function progress(steps: readonly Step[]): number {
@@ -126,14 +179,12 @@ function bar(percent: number, width: number): string {
   return '█'.repeat(filled) + '░'.repeat(width - filled)
 }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  const words = STRINGS[language(options.language)]
+
   on('session.start', async ($, e, next) => {
     await $.tool.register({ name: 'track', description: DESCRIPTION, inputSchema: SCHEMA, isDeferred: false })
-    await $.command.register({
-      name: 'roadmap',
-      description: 'Abre la barra lateral del roadmap (con "clear" la vacía)',
-      argumentHint: '[clear]',
-    })
+    await $.command.register({ name: 'roadmap', description: words.command, argumentHint: words.hintArgs })
 
     return next(e)
   })
@@ -145,24 +196,37 @@ export const register: Register = on => {
       return composed
     }
 
-    return { sections: [...composed.sections, { id: 'roadmap:guide', text: GUIDE, scope: 'session' }] }
+    return { sections: [...composed.sections, { id: 'roadmap:guide', text: guide(words), scope: 'session' }] }
   })
 
   on('command.run', { command: 'roadmap' }, async ($, e) => {
-    if (text(e.args) === 'clear') {
+    const [verb = '', value = ''] = text(e.args).split(/\s+/)
+
+    if (verb === 'clear') {
       await update($, plan, () => null)
       await update($, expanded, () => [])
 
-      return { text: 'Roadmap vacío.' }
+      return { text: words.cleared }
     }
+
+    if (verb === 'lang') {
+      if (value !== 'en' && value !== 'es') {
+        return { text: words.badLanguage }
+      }
+      // A change of this option reloads the module, which then speaks the new language.
+      const set = await $.config.set({ key: 'roadmap.language', value })
+
+      return { text: set.deny === undefined ? STRINGS[value].language(STRINGS[value].name) : words.denied(set.deny) }
+    }
+
     await $.ui.open({ id: PANE, title: TITLE })
 
-    return { text: 'Roadmap abierto.' }
+    return { text: words.opened }
   })
 
   on('tool.call', { tool: TOOL }, async ($, e) => {
     const input = e as unknown as Record<string, unknown>
-    const roadmap = await update($, plan, current => apply(current, input))
+    const roadmap = await update($, plan, current => apply(current, input, words))
     if (text(input.title) !== '') {
       await update($, expanded, () => [])
     }
@@ -180,8 +244,8 @@ export const register: Register = on => {
     if (roadmap === null) {
       return (
         <Box flexDirection="column">
-          <Text weight="semibold">Sin tarea en curso</Text>
-          <Text dimColor>Cuando me pidas una tarea de varios pasos, su desglose aparecerá aquí.</Text>
+          <Text weight="semibold">{words.empty}</Text>
+          <Text dimColor>{words.hint}</Text>
         </Box>
       )
     }
@@ -196,7 +260,7 @@ export const register: Register = on => {
         <Box>
           <Text color="success">{bar(percent, width)}</Text>
           <Text tabular> {percent}%</Text>
-          <Text dimColor> · {done}/{roadmap.steps.length} pasos</Text>
+          <Text dimColor> · {done}/{roadmap.steps.length} {words.steps}</Text>
         </Box>
         {roadmap.steps.map((step, index) => {
           const isOpen = open.includes(step.id)
@@ -215,14 +279,14 @@ export const register: Register = on => {
                 <Text dimColor>{isOpen ? '▾' : '▸'}</Text>
               </Button>
               {step.inputs.length > 0 && (
-                <Text dimColor>   ← Entrada: {step.inputs.join(' · ')}</Text>
+                <Text dimColor>   ← {words.input}: {step.inputs.join(' · ')}</Text>
               )}
               {step.outputs.length > 0 && (
-                <Text dimColor>   → Salida: {step.outputs.join(' · ')}</Text>
+                <Text dimColor>   → {words.output}: {step.outputs.join(' · ')}</Text>
               )}
               {isOpen && (
                 <Box paddingLeft={3} flexDirection="column">
-                  <Markdown text={step.details ?? '_Sin detalles todavía._'} />
+                  <Markdown text={step.details ?? words.noDetails} />
                 </Box>
               )}
             </Box>

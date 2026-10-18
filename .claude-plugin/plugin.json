@@ -1,11 +1,33 @@
 {
   "name": "roadmap",
-  "version": "0.2.0",
-  "description": "Barra lateral con el roadmap de la tarea en curso: pasos, avance, entradas y salidas",
-  "author": { "name": "Mauricio", "url": "https://github.com/MauricioRodCar" },
+  "version": "0.3.0",
+  "description": "Sidebar roadmap for the current task: steps, progress, inputs and outputs (English / Español)",
+  "author": {
+    "name": "Mauricio",
+    "url": "https://github.com/MauricioRodCar"
+  },
   "homepage": "https://github.com/MauricioRodCar/claude-roadmap-mod",
   "repository": "https://github.com/MauricioRodCar/claude-roadmap-mod",
   "license": "MIT",
-  "keywords": ["roadmap", "checklist", "progress", "sidebar", "mod"],
+  "keywords": [
+    "roadmap",
+    "checklist",
+    "progress",
+    "sidebar",
+    "mod",
+    "i18n"
+  ],
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "Language of the roadmap sidebar and of the steps Claude writes (en: English, es: Español)",
+      "default": "en",
+      "options": [
+        "en",
+        "es"
+      ]
+    }
+  },
   "types": "./types/index.d.ts"
 }
